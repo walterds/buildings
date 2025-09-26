@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Card Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Card Game</h1>
+    <h2 id="turn-indicator">Player 1's Turn</h2>
+    <div id="game-container">
+        <div id="player-area">
+            <h2>Your Hand</h2>
+            <div id="player-hand" class="card-container"></div>
+        </div>
+        <div id="actions">
+            <button id="draw-card">Draw Card</button>
+            <button id="build-structure">Build Structure</button>
+            <button id="discard-card">Discard Card</button>
+            <button id="use-intervention">Use Intervention</button>
+        </div>
+        <div id="built-structures-area">
+            <h2>Your Built Structures</h2>
+            <div id="built-structures" class="card-container"></div>
+        </div>
+    </div>
+    <div id="scoreboard-area">
+        <h2>Scoreboard</h2>
+        <div id="scoreboard"></div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
