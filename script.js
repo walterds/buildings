@@ -74,12 +74,36 @@ function renderPlayerHand() {
 
     if (!currentPlayer) return;
 
+    // Update hand title
+    document.getElementById('player-hand-title').textContent = `${currentPlayer.name}'s Hand`;
+
+
     currentPlayer.hand.forEach(card => {
-        const cardElement = document.createElement('div');
-        cardElement.className = 'card';
-        cardElement.textContent = `${card.number} of ${card.suit}`;
+        const cardElement = createAsciiCard(card);
         playerHandContainer.appendChild(cardElement);
     });
+}
+
+function createAsciiCard(card) {
+    const cardElement = document.createElement('div');
+    cardElement.className = 'card';
+    const suitSymbol = {
+        'Oros': '●',
+        'Copas': '♥',
+        'Espadas': '♠',
+        'Bastos': '♣'
+    }[card.suit];
+
+    cardElement.innerHTML = `
+.-------.
+| ${card.number.toString().padEnd(2)}    |
+|       |
+|   ${suitSymbol}   |
+|       |
+|    ${card.number.toString().padStart(2)} |
+'-------'
+    `;
+    return cardElement;
 }
 
 function buildStructure() {
@@ -197,9 +221,8 @@ function build(cards, structureName, points) {
         }
     });
 
-    renderPlayerHand();
-    renderBuiltStructures();
-    alert(`You built a ${structureName}!`);
+    updateAllUI();
+    alert(`${currentPlayer.name} built a ${structureName}!`);
 }
 
 function renderBuiltStructures() {
@@ -209,16 +232,19 @@ function renderBuiltStructures() {
 
     if (!currentPlayer) return;
 
+    document.getElementById('built-structures-title').textContent = `${currentPlayer.name}'s Structures`;
+
     currentPlayer.structures.forEach(structure => {
         const structureElement = document.createElement('div');
         structureElement.className = 'structure';
         structureElement.innerHTML = `<h3>${structure.name} (${structure.points} pts)</h3>`;
+        const cardContainer = document.createElement('div');
+        cardContainer.className = 'card-container';
         structure.cards.forEach(card => {
-            const cardElement = document.createElement('div');
-            cardElement.className = 'card';
-            cardElement.textContent = `${card.number} of ${card.suit}`;
-            structureElement.appendChild(cardElement);
+            const cardElement = createAsciiCard(card);
+            cardContainer.appendChild(cardElement);
         });
+        structureElement.appendChild(cardContainer);
         builtStructuresContainer.appendChild(structureElement);
     });
 }
@@ -226,13 +252,15 @@ function renderBuiltStructures() {
 function discardCard() {
     const currentPlayer = players[currentPlayerIndex];
     if (currentPlayer.hand.length > 0) {
-        const cardToDiscard = prompt("Which card to discard? (Enter number then suit, e.g., '7 Oros')");
+        const cardToDiscard = prompt(`${currentPlayer.name}, which card to discard? (e.g., '7 Oros')`);
         if (cardToDiscard) {
-            const [number, suit] = cardToDiscard.split(' ');
-            const cardIndex = currentPlayer.hand.findIndex(c => c.number == number && c.suit === suit);
+            const parts = cardToDiscard.split(' ');
+            const number = parts[0];
+            const suit = parts.slice(1).join(' ');
+            const cardIndex = currentPlayer.hand.findIndex(c => c.number == number && c.suit.toLowerCase() === suit.toLowerCase());
             if (cardIndex !== -1) {
                 currentPlayer.hand.splice(cardIndex, 1);
-                renderPlayerHand();
+                updateAllUI();
             } else {
                 alert("Card not found in your hand.");
             }
@@ -251,28 +279,31 @@ function useIntervention() {
         return;
     }
 
-    const targetPlayerIndex = parseInt(prompt(`Which player to target? (0-${players.length - 1})`), 10);
+    const targetOptions = players
+        .map((p, i) => i !== currentPlayerIndex ? `${i}: ${p.name}` : null)
+        .filter(Boolean)
+        .join('\n');
+
+    const targetPlayerIndex = parseInt(prompt(`Who to target with your intervention card?\n${targetOptions}`), 10);
+
     if (isNaN(targetPlayerIndex) || targetPlayerIndex < 0 || targetPlayerIndex >= players.length || targetPlayerIndex === currentPlayerIndex) {
         alert("Invalid target player.");
         return;
     }
 
     const interventionCard = currentPlayer.hand.splice(interventionCardIndex, 1)[0];
-    // The card is "burned" - effectively removed from the game for this round.
-
     const targetPlayer = players[targetPlayerIndex];
     const hasStructure = checkForAnyStructure(targetPlayer.hand);
 
     if (hasStructure) {
-        alert(`Player ${targetPlayerIndex} has a structure! They must build it. You are blocked next turn.`);
+        alert(`${targetPlayer.name} has a structure! They must build it. ${currentPlayer.name} is blocked next turn.`);
         currentPlayer.blocked = true;
-        // In a real game, we'd force the build. For now, we'll just notify.
     } else {
-        alert(`Player ${targetPlayerIndex} has no structure. They lose their next turn.`);
+        alert(`${targetPlayer.name} has no structure. They lose their next turn.`);
         targetPlayer.blocked = true;
     }
 
-    renderPlayerHand();
+    updateAllUI();
     nextTurn();
 }
 
@@ -281,16 +312,121 @@ function checkForAnyStructure(hand) {
 }
 
 function nextTurn() {
+    let nextPlayerFound = false;
+    let loopedOnce = false;
+
     do {
         currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
-    } while (players[currentPlayerIndex].blocked);
+        if (currentPlayerIndex === 0 && loopedOnce) { // Looped through all players
+            endRound(); // Or handle game state where no one can move
+            return;
+        }
+        if(currentPlayerIndex === players.length -1) loopedOnce = true;
 
-    players[currentPlayerIndex].blocked = false; // Unblock for their actual turn
+        if (!players[currentPlayerIndex].blocked) {
+            nextPlayerFound = true;
+        } else {
+            console.log(`${players[currentPlayerIndex].name} is blocked.`);
+            players[currentPlayerIndex].blocked = false; // Unblock for their *next* turn
+        }
+    } while (!nextPlayerFound);
 
-    document.getElementById('turn-indicator').textContent = `Player ${currentPlayerIndex + 1}'s Turn`;
-    renderPlayerHand();
-    renderBuiltStructures();
-    alert(`It is now Player ${currentPlayerIndex + 1}'s turn.`);
+    document.getElementById('turn-indicator').textContent = `${players[currentPlayerIndex].name}'s Turn`;
+    updateAllUI();
+
+    if (players[currentPlayerIndex].isBot) {
+        // Bot's turn
+        alert(`It is now ${players[currentPlayerIndex].name}'s turn.`);
+        setTimeout(playBotTurn, 1500); // Delay for bot's turn
+    } else {
+        // Human's turn
+        alert(`It is now ${players[currentPlayerIndex].name}'s turn.`);
+    }
+}
+
+function playBotTurn() {
+    const bot = players[currentPlayerIndex];
+    console.log(`${bot.name} is thinking...`);
+
+    // 1. Try to build a structure (highest value first)
+    if (findFortress(bot.hand)) {
+        buildStructure(); // buildStructure already targets the current player
+        console.log(`${bot.name} decided to build a Fortress.`);
+        if (!checkEndOfRound()) nextTurn();
+        return;
+    }
+    if (findMarket(bot.hand)) {
+        buildStructure();
+        console.log(`${bot.name} decided to build a Market.`);
+        if (!checkEndOfRound()) nextTurn();
+        return;
+    }
+    if (findTower(bot.hand)) {
+        buildStructure();
+        console.log(`${bot.name} decided to build a Tower.`);
+        if (!checkEndOfRound()) nextTurn();
+        return;
+    }
+    if (findHouse(bot.hand)) {
+        buildStructure();
+        console.log(`${bot.name} decided to build a House.`);
+        if (!checkEndOfRound()) nextTurn();
+        return;
+    }
+
+    // 2. Try to use an intervention card
+    const interventionCardIndex = bot.hand.findIndex(card => card.number === 10);
+    if (interventionCardIndex !== -1) {
+        // Simple AI: target the player with the highest score who is not the bot itself
+        let targetPlayerIndex = -1;
+        let highestScore = -1;
+        players.forEach((p, i) => {
+            if (i !== currentPlayerIndex && p.score > highestScore) {
+                highestScore = p.score;
+                targetPlayerIndex = i;
+            }
+        });
+
+        if (targetPlayerIndex !== -1) {
+            console.log(`${bot.name} is using an intervention card on ${players[targetPlayerIndex].name}.`);
+            bot.hand.splice(interventionCardIndex, 1);
+            const targetPlayer = players[targetPlayerIndex];
+            if (checkForAnyStructure(targetPlayer.hand)) {
+                alert(`${bot.name} used an intervention card on ${targetPlayer.name}, who had a structure! ${bot.name} is blocked.`);
+                bot.blocked = true;
+            } else {
+                alert(`${bot.name} used an intervention card on ${targetPlayer.name}, who had no structure. They are blocked.`);
+                targetPlayer.blocked = true;
+            }
+            updateAllUI();
+            if (!checkEndOfRound()) nextTurn();
+            return;
+        }
+    }
+
+
+    // 3. Draw a card if hand is not full
+    if (bot.hand.length < 7 && deck.length > 0) {
+        console.log(`${bot.name} decided to draw a card.`);
+        drawCard();
+        if (!checkEndOfRound()) nextTurn();
+        return;
+    }
+
+    // 4. Discard a card if hand is full
+    if (bot.hand.length > 0) { // Should always be true if we reach here
+        // Simple discard AI: discard the first card that's not a 10
+        let cardToDiscardIndex = bot.hand.findIndex(c => c.number !== 10);
+        if (cardToDiscardIndex === -1) cardToDiscardIndex = 0; // all 10s, discard one
+        const discardedCard = bot.hand.splice(cardToDiscardIndex, 1)[0];
+        console.log(`${bot.name} decided to discard ${discardedCard.number} of ${discardedCard.suit}.`);
+        updateAllUI();
+        if (!checkEndOfRound()) nextTurn();
+        return;
+    }
+
+    // If bot can do nothing, just move to the next turn
+    nextTurn();
 }
 
 function initializeGame(numPlayers = 2, startingPlayerIndex = 0) {
@@ -413,5 +549,51 @@ document.getElementById('use-intervention').addEventListener('click', () => {
 });
 
 
+function setupGame() {
+    const playerName = prompt("Enter your name:", "Player 1");
+    let numBots;
+    do {
+        numBots = parseInt(prompt("How many bots to play against? (1-3)", "1"), 10);
+    } while (isNaN(numBots) || numBots < 1 || numBots > 3);
+
+    const botNames = ['R2-D2', 'C-3PO', 'Data', 'HAL 9000', 'T-800'].sort(() => 0.5 - Math.random());
+
+    const humanPlayer = {
+        name: playerName,
+        isBot: false,
+    };
+
+    const botPlayers = Array.from({ length: numBots }, (_, i) => ({
+        name: botNames[i],
+        isBot: true,
+    }));
+
+    const allPlayers = [humanPlayer, ...botPlayers];
+
+    // This part is a bit tricky because initializeGame deals cards.
+    // We need to set up the player names first.
+    players = allPlayers.map(p => ({ ...p, score: 0, structures: [], hand: [] }));
+
+    initializeGame(allPlayers.length);
+}
+
+
+function setupGame() {
+    const playerName = prompt("Enter your name:", "Player 1");
+    let numBots;
+    do {
+        numBots = parseInt(prompt("How many bots to play against? (1-3)", "1"), 10);
+    } while (isNaN(numBots) || numBots < 1 || numBots > 3);
+
+    const botNames = ['R2-D2', 'C-3PO', 'Data', 'HAL 9000', 'T-800'].sort(() => 0.5 - Math.random());
+
+    const humanPlayer = { name: playerName, isBot: false, score: 0 };
+    const botPlayers = Array.from({ length: numBots }, (_, i) => ({ name: botNames[i], isBot: true, score: 0 }));
+
+    players = [humanPlayer, ...botPlayers];
+
+    initializeGame(players.length);
+}
+
 // Initialize the game
-initializeGame();
+setupGame();
