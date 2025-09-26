@@ -55,12 +55,12 @@ function initializeGame(numPlayers = 2) {
 function drawCard() {
     if (deck.length > 0) {
         const currentPlayer = players[currentPlayerIndex];
-        if (currentPlayer.hand.length < 7) {
+        if (currentPlayer.hand.length < 6) {
             const card = deck.pop();
             currentPlayer.hand.push(card);
-            renderPlayerHand();
+            updateAllUI();
         } else {
-            alert("You cannot have more than 7 cards in your hand.");
+            alert("You cannot have more than 6 cards in your hand. You must discard first.");
         }
     } else {
         alert("The draw pile is empty.");
@@ -74,14 +74,34 @@ function renderPlayerHand() {
 
     if (!currentPlayer) return;
 
-    // Update hand title
     document.getElementById('player-hand-title').textContent = `${currentPlayer.name}'s Hand`;
 
+    if (currentPlayer.isBot) {
+        currentPlayer.hand.forEach(() => {
+            const cardElement = createAsciiCardBack();
+            playerHandContainer.appendChild(cardElement);
+        });
+    } else {
+        currentPlayer.hand.forEach(card => {
+            const cardElement = createAsciiCard(card);
+            playerHandContainer.appendChild(cardElement);
+        });
+    }
+}
 
-    currentPlayer.hand.forEach(card => {
-        const cardElement = createAsciiCard(card);
-        playerHandContainer.appendChild(cardElement);
-    });
+function createAsciiCardBack() {
+    const cardElement = document.createElement('div');
+    cardElement.className = 'card';
+    cardElement.innerHTML = `
+.-------.
+|#######|
+|#######|
+|#######|
+|#######|
+|#######|
+'-------'
+    `;
+    return cardElement;
 }
 
 function createAsciiCard(card) {
@@ -312,6 +332,28 @@ function checkForAnyStructure(hand) {
 }
 
 function nextTurn() {
+    const currentPlayer = players[currentPlayerIndex];
+
+    // Enforce 6-card limit at the end of a turn.
+    if (currentPlayer.hand.length > 6) {
+        if (currentPlayer.isBot) {
+            // Bot automatically discards the least valuable card.
+            // Simple AI: discard the first card that's not a 10.
+            let cardToDiscardIndex = currentPlayer.hand.findIndex(c => c.number !== 10);
+            if (cardToDiscardIndex === -1) { // All cards are 10s
+                cardToDiscardIndex = 0;
+            }
+            const discardedCard = currentPlayer.hand.splice(cardToDiscardIndex, 1)[0];
+            console.log(`${currentPlayer.name} has more than 6 cards and must discard. Discarded ${discardedCard.number} of ${discardedCard.suit}.`);
+            alert(`${currentPlayer.name} has more than 6 cards and discarded one.`);
+            updateAllUI();
+        } else {
+            // For the human player, block and force a discard.
+            alert("You have more than 6 cards. You must discard one to end your turn.");
+            return; // Do not proceed to the next player's turn.
+        }
+    }
+
     let nextPlayerFound = false;
     let loopedOnce = false;
 
@@ -429,24 +471,19 @@ function playBotTurn() {
     nextTurn();
 }
 
-function initializeGame(numPlayers = 2, startingPlayerIndex = 0) {
+function initializeGame(numPlayers, startingPlayerIndex = 0) {
     createDeck();
     shuffleDeck();
-    players = dealCards(numPlayers, 5).map((hand, index) => ({
-        ...players[index], // Preserve scores across rounds
-        id: index,
-        hand: hand,
-        structures: [],
-        blocked: false
-    }));
+    const newHands = dealCards(numPlayers, 5);
 
-    if (players.some(p => p.score === undefined)) {
-        players.forEach(p => p.score = 0);
-    }
-
+    players.forEach((player, index) => {
+        player.hand = newHands[index];
+        player.structures = [];
+        player.blocked = false;
+    });
 
     currentPlayerIndex = startingPlayerIndex;
-    document.getElementById('turn-indicator').textContent = `Player ${currentPlayerIndex + 1}'s Turn`;
+    document.getElementById('turn-indicator').textContent = `${players[currentPlayerIndex].name}'s Turn`;
     updateAllUI();
     console.log("Game initialized for a new round.");
 }
@@ -499,7 +536,7 @@ function checkForWinner() {
         }
     }
 
-    alert(`Player ${winner.id + 1} wins the game with ${winner.score} points!`);
+    alert(`${winner.name} wins the game with ${winner.score} points!`);
     // Disable game buttons
     document.getElementById('draw-card').disabled = true;
     document.getElementById('build-structure').disabled = true;
@@ -520,7 +557,7 @@ function renderScoreboard() {
     scoreboard.innerHTML = '';
     players.forEach(player => {
         const playerScore = document.createElement('div');
-        playerScore.textContent = `Player ${player.id + 1}: ${player.score} points`;
+        playerScore.textContent = `${player.name}: ${player.score} points`;
         scoreboard.appendChild(playerScore);
     });
 }
@@ -529,14 +566,67 @@ function updateAllUI() {
     renderPlayerHand();
     renderBuiltStructures();
     renderScoreboard();
+    updateBuildButtons();
+}
+
+function updateBuildButtons() {
+    const currentPlayer = players[currentPlayerIndex];
+    // Buttons are only for the human player
+    if (currentPlayer.isBot) {
+        document.getElementById('build-house').disabled = true;
+        document.getElementById('build-tower').disabled = true;
+        document.getElementById('build-market').disabled = true;
+        document.getElementById('build-fortress').disabled = true;
+        return;
+    }
+
+    const hand = currentPlayer.hand;
+    document.getElementById('build-house').disabled = !findHouse(hand);
+    document.getElementById('build-tower').disabled = !findTower(hand);
+    document.getElementById('build-market').disabled = !findMarket(hand);
+    document.getElementById('build-fortress').disabled = !findFortress(hand);
+}
+
+function buildSpecificStructure(structureType) {
+    const currentPlayer = players[currentPlayerIndex];
+    let cardsToBuild, structureName, points;
+
+    switch (structureType) {
+        case 'House':
+            cardsToBuild = findHouse(currentPlayer.hand);
+            structureName = 'House';
+            points = 1;
+            break;
+        case 'Tower':
+            cardsToBuild = findTower(currentPlayer.hand);
+            structureName = 'Tower';
+            points = 2;
+            break;
+        case 'Market':
+            cardsToBuild = findMarket(currentPlayer.hand);
+            structureName = 'Market';
+            points = 3;
+            break;
+        case 'Fortress':
+            cardsToBuild = findFortress(currentPlayer.hand);
+            structureName = 'Fortress';
+            points = 4;
+            break;
+    }
+
+    if (cardsToBuild) {
+        build(cardsToBuild, structureName, points);
+        if (!checkEndOfRound()) {
+            nextTurn();
+        }
+    } else {
+        // This case should not be reachable if buttons are disabled correctly, but it's good for safety.
+        alert(`You cannot build a ${structureName}.`);
+    }
 }
 
 document.getElementById('draw-card').addEventListener('click', () => {
     drawCard();
-    if (!checkEndOfRound()) nextTurn();
-});
-document.getElementById('build-structure').addEventListener('click', () => {
-    buildStructure();
     if (!checkEndOfRound()) nextTurn();
 });
 document.getElementById('discard-card').addEventListener('click', () => {
@@ -545,8 +635,14 @@ document.getElementById('discard-card').addEventListener('click', () => {
 });
 document.getElementById('use-intervention').addEventListener('click', () => {
     useIntervention();
-    checkEndOfRound(); // Intervention doesn't automatically end the turn in the same way
+    checkEndOfRound();
 });
+
+// New event listeners for specific build buttons
+document.getElementById('build-house').addEventListener('click', () => buildSpecificStructure('House'));
+document.getElementById('build-tower').addEventListener('click', () => buildSpecificStructure('Tower'));
+document.getElementById('build-market').addEventListener('click', () => buildSpecificStructure('Market'));
+document.getElementById('build-fortress').addEventListener('click', () => buildSpecificStructure('Fortress'));
 
 
 function setupGame() {
@@ -561,36 +657,23 @@ function setupGame() {
     const humanPlayer = {
         name: playerName,
         isBot: false,
+        score: 0,
     };
-
     const botPlayers = Array.from({ length: numBots }, (_, i) => ({
         name: botNames[i],
         isBot: true,
+        score: 0,
     }));
 
-    const allPlayers = [humanPlayer, ...botPlayers];
-
-    // This part is a bit tricky because initializeGame deals cards.
-    // We need to set up the player names first.
-    players = allPlayers.map(p => ({ ...p, score: 0, structures: [], hand: [] }));
-
-    initializeGame(allPlayers.length);
-}
-
-
-function setupGame() {
-    const playerName = prompt("Enter your name:", "Player 1");
-    let numBots;
-    do {
-        numBots = parseInt(prompt("How many bots to play against? (1-3)", "1"), 10);
-    } while (isNaN(numBots) || numBots < 1 || numBots > 3);
-
-    const botNames = ['R2-D2', 'C-3PO', 'Data', 'HAL 9000', 'T-800'].sort(() => 0.5 - Math.random());
-
-    const humanPlayer = { name: playerName, isBot: false, score: 0 };
-    const botPlayers = Array.from({ length: numBots }, (_, i) => ({ name: botNames[i], isBot: true, score: 0 }));
-
     players = [humanPlayer, ...botPlayers];
+    // Initialize player-specific properties for the first round
+    players.forEach((p,i) => {
+        p.id = i;
+        p.structures = [];
+        p.hand = [];
+        p.blocked = false;
+    });
+
 
     initializeGame(players.length);
 }
