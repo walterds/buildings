@@ -14,11 +14,18 @@ h1, h2, h3 {
 
 #main-content {
     display: flex;
-    gap: 40px;
-    margin-top: 20px;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    margin-top: 15px;
 }
 
-#game-rules, #game-container, #scoreboard-area {
+#game-info-container {
+    display: flex;
+    gap: 20px;
+}
+
+#game-rules, #scoreboard-area {
     border: 2px solid #0F0;
     padding: 15px;
     box-shadow: 0 0 10px #0F0 inset;
@@ -38,9 +45,9 @@ h1, h2, h3 {
 
 .card {
     border: 1px solid #0F0;
-    padding: 10px;
-    width: 100px;
-    height: 140px;
+    padding: 5px;
+    width: 80px;
+    height: 110px;
     background-color: #000;
     display: flex;
     flex-direction: column;
@@ -48,6 +55,13 @@ h1, h2, h3 {
     align-items: center;
     text-align: center;
     white-space: pre;
+    font-size: 0.8em;
+}
+
+#game-container {
+    border: 2px solid #0F0;
+    padding: 15px;
+    box-shadow: 0 0 10px #0F0 inset;
 }
 
 .structure {
@@ -75,4 +89,16 @@ button:hover {
     background-color: #000;
     color: #0F0;
     border: 1px solid #0F0;
+}
+
+button.active-mode {
+    background-color: #FF0;
+    color: #000;
+    box-shadow: 0 0 10px #FF0;
+}
+
+.card.discard-mode:hover {
+    cursor: pointer;
+    border-color: #FF0; /* Yellow border to indicate clickability */
+    box-shadow: 0 0 10px #FF0;
 }

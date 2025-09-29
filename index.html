@@ -10,12 +10,21 @@
     <h1>Card Game</h1>
     <h2 id="turn-indicator">Player 1's Turn</h2>
     <div id="main-content">
-        <div id="game-rules">
-            <h3>-- Building Rules --</h3>
-            <p><strong>Fortress (4pts):</strong> 3 consecutive cards, same suit</p>
-            <p><strong>Market (3pts):</strong> 3 cards, same number</p>
-            <p><strong>Tower (2pts):</strong> 4 cards, same suit</p>
-            <p><strong>House (1pt):</strong> 2 cards, same number</p>
+        <div id="game-info-container">
+            <div id="game-rules">
+                <h3>-- Building Rules --</h3>
+                <p><strong>Fortress (4pts):</strong> 3 consecutive cards, same suit</p>
+                <p><strong>Market (3pts):</strong> 3 cards, same number</p>
+                <p><strong>Tower (2pts):</strong> 4 cards, same suit</p>
+                <p><strong>House (1pt):</strong> 2 cards, same number</p>
+            </div>
+            <div id="scoreboard-area">
+                <h2>Scoreboard</h2>
+                <div id="scoreboard"></div>
+                <div id="deck-info">
+                    <p>Cards in Deck: <span id="deck-count">40</span></p>
+                </div>
+            </div>
         </div>
         <div id="game-container">
             <div id="player-area">
@@ -23,25 +32,22 @@
                 <div id="player-hand" class="card-container"></div>
             </div>
             <div id="actions">
-            <button id="draw-card">Draw Card</button>
-            <button id="discard-card">Discard Card</button>
-            <button id="use-intervention">Use Intervention</button>
+                <button id="draw-card">Draw Card</button>
+                <button id="discard-card">Discard Card</button>
+                <button id="use-intervention">Use Intervention</button>
+            </div>
+            <div id="build-actions">
+                <h3>-- Build --</h3>
+                <button id="build-house" disabled>House (1pt)</button>
+                <button id="build-tower" disabled>Tower (2pts)</button>
+                <button id="build-market" disabled>Market (3pts)</button>
+                <button id="build-fortress" disabled>Fortress (4pts)</button>
+            </div>
+            <div id="built-structures-area">
+                <h2 id="built-structures-title">Your Built Structures</h2>
+                <div id="built-structures" class="card-container"></div>
+            </div>
         </div>
-        <div id="build-actions">
-            <h3>-- Build --</h3>
-            <button id="build-house" disabled>House (1pt)</button>
-            <button id="build-tower" disabled>Tower (2pts)</button>
-            <button id="build-market" disabled>Market (3pts)</button>
-            <button id="build-fortress" disabled>Fortress (4pts)</button>
-        </div>
-        <div id="built-structures-area">
-            <h2 id="built-structures-title">Your Built Structures</h2>
-            <div id="built-structures" class="card-container"></div>
-        </div>
-    </div>
-    <div id="scoreboard-area">
-        <h2>Scoreboard</h2>
-        <div id="scoreboard"></div>
     </div>
     <script src="script.js"></script>
 </body>
